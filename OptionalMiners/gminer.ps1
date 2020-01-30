@@ -1,4 +1,4 @@
-if (!(IsLoaded(".\Includes\include.ps1"))) { . .\Includes\include.ps1; RegisterLoaded(".\Includes\include.ps1") }
+If (-not (IsLoaded(".\Includes\include.ps1"))) { . .\Includes\include.ps1; RegisterLoaded(".\Includes\include.ps1") }
 $Path = ".\Bin\NVIDIA-Gminer196\miner.exe"
 $Uri = "https://github.com/develsoftware/GMinerRelease/releases/download/1.96/gminer_1_96_windows64.zip"
 $Commands = [PSCustomObject]@{ 
@@ -18,7 +18,6 @@ $Commands = [PSCustomObject]@{
     "cuckaroom"        = " --devices $($Config.SelGPUDSTM) --algo grin29" #Cuckaroom 
     "ethash+eaglesong" = " --devices $($Config.SelGPUDSTM) --algo eth+ckb --proto stratum --dproto stratum --dual_intensity 0" #Ethash + Eaglesong
 }
-$Name = "$(Get-Item $MyInvocation.MyCommand.Path | Select-Object -ExpandProperty BaseName)"
 $Commands | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty Name | ForEach-Object { $Algo = Get-Algorithm ($_ -split '\+' | Select-Object -Index 0); $Algo2 = Get-Algorithm ($_ -split '\+' | Select-Object -Index 1); $_ } | Where-Object { $Pools.$Algo.Host } | ForEach-Object { 
     switch ($_) { 
         "ethash" { $Fee = 0.0065 }
@@ -27,13 +26,22 @@ $Commands | Get-Member -MemberType NoteProperty | Select-Object -ExpandProperty 
         default { $Fee = 0.02 }
     }
 
-    $HashRates = [PSCustomObject]@{ $Algo = $Stats."$($Name)_$(@(($Algo + $Algo2) | Select-Object) -Join '-')_HashRate".Day * (1 - $Fee) } # substract devfee
-    if ($Algo2) { $HashRates | Add-Member "$Algo2" ($Stats."$($Name)_$((@($Algo + $Algo2) | Select-Object) -Join '-')_HashRate".Day * (1 - $Fee) ) } # substract devfee
+    if ($Algo2) { 
+        $Name = "$(Get-Item $MyInvocation.MyCommand.Path | Select-Object -ExpandProperty BaseName)-$Algo2"
+        $HashRates = [PSCustomObject]@{ $Algo = $Stats."$($Name)_$($Algo)_HashRate".Day * (1 - $Fee); $Algo2 = $Stats."$($Name)_$($Algo2)_HashRate".Day * (1 - $Fee) } # substract devfee
+        $Algo2Parameter =" --dserver $($Pools.$Algo2.Host) --dport $($Pools.$Algo2.Port) --duser $($Pools.$Algo2.User) --dpass $($Pools.$Algo2.Pass)"
+    }
+    Else { 
+        $Name = "$(Get-Item $MyInvocation.MyCommand.Path | Select-Object -ExpandProperty BaseName)"
+        $HashRates = [PSCustomObject]@{ $Algo = $Stats."$($Name)_$($Algo)_HashRate".Day * (1 - $Fee) } # substract devfee
+        $Algo2Parameter = ""
+    }
 
     [PSCustomObject]@{ 
         Type      = "NVIDIA"
+        Name      = $Name
         Path      = $Path
-        Arguments = "--watchdog 0 --pec 0 --nvml 0 --api $($Variables.NVIDIAMinerAPITCPPort) --server $($Pools.$Algo.Host) --port $($Pools.$Algo.Port) --user $($Pools.$Algo.User) --pass $($Pools.$Algo.Pass)$(if ($Algo2) { " --dserver $($Pools.$Algo2.Host) --dport $($Pools.$Algo2.Port) --duser $($Pools.$Algo2.User) --dpass $($Pools.$Algo2.Pass)" } )$($Commands.$_)"
+        Arguments = "--watchdog 0 --pec 0 --nvml 0 --api $($Variables.NVIDIAMinerAPITCPPort) --server $($Pools.$Algo.Host) --port $($Pools.$Algo.Port) --user $($Pools.$Algo.User) --pass $($Pools.$Algo.Pass)$Algo2Parameter$($Commands.$_)"
         HashRates = $HashRates
         API       = "gminer"
         Port      = $Variables.NVIDIAMinerAPITCPPort
