@@ -1,6 +1,6 @@
 # NemosMiner
 
-### Note: NemoMiner is no longer maintained. Please check out [UG-Miner](https://github.com/UselessGuru/UG-Miner) instead.
+### Note: NemosMiner is no longer maintained. Please check out [UG-Miner](https://github.com/UselessGuru/UG-Miner) instead.
 
 
 NemosMiner monitors mining pools in real-time in order to find the most profitable algorithm
